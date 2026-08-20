@@ -22,7 +22,9 @@ import csv
 import json
 import sys
 import time
+import traceback
 from dataclasses import replace
+from math import dist
 from pathlib import Path
 from random import Random
 
@@ -87,6 +89,22 @@ PREEMPTION_COOLDOWN_OVERRIDE_S = 90.0
 PILOT_ARENA_WIDTH_M = 2.0
 PILOT_ARENA_HEIGHT_M = 1.0
 
+# Idle robots need to actually search the field for the GUARD task instead of
+# holding still - detection is purely proximity-based (docs/pipuck_task_simulator.py's
+# DETECTION_RADIUS), so an idle robot that never moves may just never come
+# close enough to trigger it. Mirrors what docs/webots_market_supervisor_controller.py
+# does centrally via CTL_EXPLORE_TARGET, but simpler: no coordination needed
+# for a single-task, two-robot pilot, so each robot just picks its own
+# random point in the field and re-picks on arrival - see explore_target
+# handling in _run_loop below.
+EXPLORE_MARGIN_M = 0.15  # keep waypoints off the taped field edge
+
+
+def _random_explore_target(rng: Random, config: SimulationConfig) -> tuple[float, float]:
+    x = rng.uniform(EXPLORE_MARGIN_M, max(EXPLORE_MARGIN_M, config.arena_width - EXPLORE_MARGIN_M))
+    y = rng.uniform(EXPLORE_MARGIN_M, max(EXPLORE_MARGIN_M, config.arena_height - EXPLORE_MARGIN_M))
+    return (x, y)
+
 
 def _load_strategy() -> Strategy:
     weights = json.loads(BEST_WEIGHTS_PATH.read_text(encoding="utf-8"))["market_weights"]
@@ -136,7 +154,10 @@ def main() -> None:
         backend=backend,
     )
 
-    explore_target = robot.position  # no exploration in the pilot (SURVEY disabled) - just hold position when idle
+    # Separate stream from the robot's own bid-tiebreak Random(...) above -
+    # unrelated concerns, no reason to couple their sequences.
+    explore_rng = Random(robot_index * 97 + 31 + 500)
+    explore_target = _random_explore_target(explore_rng, config)
     active_tasks: set[str] = set()
     logger = RunLogger()
     dt = 1.0 / TICK_HZ
@@ -145,7 +166,7 @@ def main() -> None:
     print(f"  {robot_id}: STRATEGY_NAME={STRATEGY_NAME!r} module={__file__}")
 
     try:
-        _run_loop(robot_id, robot, backend, config, active_tasks, explore_target, logger, dt, start)
+        _run_loop(robot_id, robot, backend, config, active_tasks, explore_target, explore_rng, logger, dt, start)
     finally:
         # Always write whatever was logged, even on Ctrl+C or an exception -
         # a partial log from an aborted pilot run is still worth keeping.
@@ -158,7 +179,7 @@ def main() -> None:
         print(f"{robot_id}: wrote {len(logger.states)} state rows to {LOG_DIR / f'state_{robot_id}.csv'}")
 
 
-def _run_loop(robot_id, robot, backend, config, active_tasks, explore_target, logger, dt, start) -> None:
+def _run_loop(robot_id, robot, backend, config, active_tasks, explore_target, explore_rng, logger, dt, start) -> None:
     next_state_log = 0.0
     last_assignments: list[str] = []
 
@@ -202,6 +223,15 @@ def _run_loop(robot_id, robot, backend, config, active_tasks, explore_target, lo
         for message in robot.advance(now, config.dt, active_tasks, explore_target):
             backend.broadcast(message.to_bytes())
 
+        # Idle and reached the current waypoint - pick a new one so the
+        # robot keeps covering the field instead of parking there. Only
+        # relevant while unassigned; robot.advance() ignores explore_target
+        # entirely once current_task_id is set.
+        if robot.current_task_id is None and dist(robot.position, explore_target) <= config.arrival_tolerance:
+            explore_target = _random_explore_target(explore_rng, config)
+            if DEBUG:
+                print(f"  t={now:6.1f}s {robot_id} exploring -> ({explore_target[0]:+.3f},{explore_target[1]:+.3f})")
+
         if DEBUG and robot.assignments != last_assignments:
             last_assignments = list(robot.assignments)
             print(
@@ -219,7 +249,21 @@ def _run_loop(robot_id, robot, backend, config, active_tasks, explore_target, lo
 
 
 if __name__ == "__main__":
+    # Was silently swallowing every non-KeyboardInterrupt exit path too -
+    # three real pilot runs have now ended with just "wrote N state rows"
+    # and no visible cause, and there's no way to tell from that alone
+    # whether it was Ctrl-C, a real crash whose traceback scrolled off the
+    # terminal, or something else. Make every exit path unambiguous and
+    # -crucially- durable across a truncated copy-paste: real crashes now
+    # also land in a file, not just stdout.
     try:
         main()
     except KeyboardInterrupt:
-        pass
+        print("\n  Interrupted via Ctrl-C.")
+    except BaseException:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        _robot_id = sys.argv[1] if len(sys.argv) > 1 else "unknown"
+        _crash_path = LOG_DIR / f"crash_{_robot_id}.log"
+        _crash_path.write_text(traceback.format_exc(), encoding="utf-8")
+        print(f"\n  CRASHED - full traceback saved to {_crash_path}")
+        raise
