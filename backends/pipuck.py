@@ -75,10 +75,18 @@ ARRIVAL_TOLERANCE = 0.08  # m -- start from the Tier-1 value; retune once real p
 HEADING_OFFSET = 0.0  # rad -- do NOT assume Webots' value transfers; re-derive empirically (see docs/LAB_PILOT_CHECKLIST.md)
 
 ROTATE_GAIN = 3.0
-ROTATE_TOLERANCE_DEG = 3.0
+# VERIFIED too tight on-site (2026-08-20 pilot logs): real robot_pos/all
+# heading noise was ~5-9 deg even while roughly pointed at the target
+# (bearing steady at ~15-16 deg, heading oscillating 7-12 deg) - at 3 deg
+# the robot could never satisfy the tolerance and sat in ROTATE forever,
+# never reaching CRUISE. Raised to clear that noise floor with margin.
+# REALIGN_THRESHOLD_DEG raised together, same ~1.7x ratio as before
+# (3.0/5.0), so CRUISE doesn't immediately bounce back into ROTATE the
+# tick after exiting it at the new, looser tolerance.
+ROTATE_TOLERANCE_DEG = 8.0
 CRUISE_SPEED = 2.0  # rad/s -- deliberately conservative for the first physical run
 CRUISE_RAMP_S = 1.0
-REALIGN_THRESHOLD_DEG = 5.0
+REALIGN_THRESHOLD_DEG = 14.0
 STUCK_CHECK_INTERVAL_S = 5.0
 STUCK_DISTANCE_THRESHOLD = 0.05  # m per interval
 BACKOFF_SPEED = -2.0
@@ -258,6 +266,12 @@ class PiPuckBackend:
     _detections: list[Detection] = field(default_factory=list)
     _control_inbox: list[dict[str, Any]] = field(default_factory=list)
     _last_rotate_debug_at: float = -1e9
+    # Hard physical-safety bounds, independent of the navigation logic above -
+    # defaults impose no bound (existing tests/webots don't set these). The
+    # pilot controller sets these to the real taped field plus a small
+    # margin; see docs/pipuck_market_robot_controller.py.
+    field_min: tuple[float, float] = (-1e9, -1e9)
+    field_max: tuple[float, float] = (1e9, 1e9)
 
     # --- RobotBackend protocol ----------------------------------------------
     def get_pose(self) -> tuple[float, float, float]:
@@ -311,6 +325,26 @@ class PiPuckBackend:
         """Advance the motors by one control-loop step. Call this at a fixed
         rate (10-20 Hz suggested) from the robot's controller script - same
         state machine as backends/webots.py's tick()."""
+
+        # Hard safety stop, ahead of and independent of every phase below
+        # (including BACKOFF, which otherwise never even reads pose) - a
+        # tracked position outside the physical field means something is
+        # already wrong (overshoot, a bad waypoint, a tracking glitch), and
+        # continuing to drive on the strength of the navigation logic's own
+        # judgement is exactly how a robot ends up off the table. Requires
+        # a pose to already exist, which main()'s startup loop guarantees
+        # before tick() is ever called.
+        if self._last_pose is not None:
+            safety_x, safety_y, _ = self._last_pose
+            if not (self.field_min[0] <= safety_x <= self.field_max[0] and self.field_min[1] <= safety_y <= self.field_max[1]):
+                print(
+                    f"  SAFETY STOP: {self.robot_id} tracked at ({safety_x:+.3f},{safety_y:+.3f}), "
+                    f"outside field bounds {self.field_min}-{self.field_max} - halting."
+                )
+                self.motors.set_velocity(0.0, 0.0)
+                self._phase = _Phase.IDLE
+                self._drain_battery(dt, 0.0)
+                return
 
         if self._phase == _Phase.BACKOFF:
             if self.now() < self._backoff_until:

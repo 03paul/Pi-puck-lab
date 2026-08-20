@@ -92,6 +92,13 @@ PREEMPTION_COOLDOWN_OVERRIDE_S = 90.0
 PILOT_ARENA_WIDTH_M = 2.0
 PILOT_ARENA_HEIGHT_M = 1.0
 
+# Hard physical-safety net (backends.pipuck.PiPuckBackend.field_min/field_max):
+# on real hardware, overshoot past a waypoint or a bad tracked reading can
+# drive a robot off the taped field before the navigation logic itself
+# would ever notice something's wrong. Small margin beyond the taped edge
+# so normal ARRIVAL_TOLERANCE-level slop near the boundary doesn't trip it.
+FIELD_SAFETY_MARGIN_M = 0.15
+
 # Idle robots need to actually search the field for the GUARD task instead of
 # holding still - detection is purely proximity-based (docs/pipuck_task_simulator.py's
 # DETECTION_RADIUS), so an idle robot that never moves may just never come
@@ -138,6 +145,8 @@ def main() -> None:
         battery_idle_drain=config.battery_idle_drain,
         battery_move_drain_per_m=config.battery_move_drain_per_m,
         battery=config.initial_battery_max,
+        field_min=(-FIELD_SAFETY_MARGIN_M, -FIELD_SAFETY_MARGIN_M),
+        field_max=(PILOT_ARENA_WIDTH_M + FIELD_SAFETY_MARGIN_M, PILOT_ARENA_HEIGHT_M + FIELD_SAFETY_MARGIN_M),
     )
 
     print(f"  {robot_id}: waiting for first tracked pose on robot_pos/all...")
