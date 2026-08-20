@@ -353,7 +353,16 @@ class PiPuckBackend:
                 self.motors.set_velocity(0.0, 0.0)
             else:
                 turn = max(-MAX_WHEEL_SPEED, min(MAX_WHEEL_SPEED, ROTATE_GAIN * error))
-                self.motors.set_velocity(-turn, turn)
+                # VERIFIED WRONG on-site (2026-08-20 pilot logs): heading kept
+                # climbing tick over tick while `turn` stayed negative and
+                # grew toward -MAX_WHEEL_SPEED - the real robot turns the
+                # opposite way from what this command intends, whether that's
+                # robot_pos/all's angle sign convention or the physical
+                # left/right wiring. Swapped which side gets +turn/-turn to
+                # correct the closed loop's sign; forward driving (CRUISE/
+                # BACKOFF below) is untouched since both wheels always get
+                # the same value there.
+                self.motors.set_velocity(turn, -turn)
                 # Diagnostic for the on-site heading-convention/motor-polarity
                 # check (see module docstring point 2: robot_pos/all's angle
                 # sign/reference axis was never actually verified against a
