@@ -144,7 +144,23 @@ class _MotorDriver:
         self._scale = 1000.0 / MAX_WHEEL_SPEED
 
     def set_velocity(self, left: float, right: float) -> None:
-        self._robot.epuck.set_motor_speeds(int(round(left * self._scale)), int(round(right * self._scale)))
+        try:
+            self._robot.epuck.set_motor_speeds(int(round(left * self._scale)), int(round(right * self._scale)))
+        except SystemExit:
+            # VERIFIED on-site (2026-08-20 pilot crash logs): the pipuck
+            # package's epuck2.py catches the real I2C fault itself
+            # (OSError "Remote I/O error" / TimeoutError "Connection timed
+            # out" - transient I2C bus glitches, not something fixable
+            # here) and calls sys.exit(1) instead of letting it propagate -
+            # this is what every previous "the script just vanishes with no
+            # traceback" run actually was: SystemExit is a BaseException,
+            # not an Exception, so it was silently unwinding the whole
+            # process every time. One bad I2C transaction during one motor
+            # command shouldn't end the whole pilot run - skip this tick and
+            # let the next one retry; if the bus is truly down, every
+            # following tick will warn the same way, which is diagnostic
+            # enough without killing the process.
+            print("  WARNING: I2C motor command failed (bus glitch?) - skipping this tick.")
 
 
 class _MqttTransport:
@@ -360,6 +376,14 @@ class PiPuckBackend:
             return
 
         px, py, heading = self.get_pose()
+        # VERIFIED DEAD on-site (2026-08-20 pilot logs): HEADING_OFFSET was
+        # defined but never actually applied anywhere - r00's rotate error
+        # was converging to a steady ~9-14 deg bias instead of ~0, exactly
+        # the symptom docs/LAB_PILOT_CHECKLIST.md's own calibration section
+        # names as the most likely stumbling block. Now it's an actual knob:
+        # 0.0 is a no-op (identical behaviour to before this line existed)
+        # until calibrated per the checklist's Webots-style procedure.
+        heading = _wrap(heading + HEADING_OFFSET)
         if self.now() - self._last_pose_at > POSE_STALE_AFTER_S:
             # Feedback is too old to steer on safely - acting on it anyway is
             # exactly what produced in-place jittering on real hardware: the
