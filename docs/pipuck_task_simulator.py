@@ -37,6 +37,8 @@ import sys
 import time
 from pathlib import Path
 
+import _py37_compat  # noqa: F401 - must run before any allocation/sim/backends import, see its docstring
+
 # Auto-detected - see docs/pipuck_market_robot_controller.py's REPO_ROOT
 # comment for why this works here but not for Webots controllers.
 REPO_ROOT = Path(__file__).resolve().parents[1]

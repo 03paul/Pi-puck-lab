@@ -38,9 +38,16 @@ crashen.
    ```
    git clone <euer-repo-url> decentralized-mrta
    cd decentralized-mrta
-   pip3 install -e .
    pip3 install paho-mqtt VL53L1X   # falls laut "Getting Started" noch nicht installiert
    ```
+   **Kein `pip3 install -e .`** — `pyproject.toml` verlangt `numpy`/`matplotlib`
+   (für `experiments/`, hier ungenutzt und auf einem Pi Zero 2 W unnötig
+   langsam zu bauen). Die vom Piloten importierten Module (`allocation`,
+   `sim.config`, `sim.robot`, `metrics.logger`, `backends.pipuck`) sind
+   reine Standardbibliothek; der `sys.path`-Fallback in beiden Skripten
+   reicht aus. Ältere `pip`-Versionen auf Raspberry Pi OS scheitern zudem
+   an `-e .` ohne `setup.py` ("Directory '.' is not installable") — auch
+   deshalb einfach überspringen statt `pip` zu reparieren.
 3. **Starten**: `python3 docs/pipuck_market_robot_controller.py r00` (bzw. `r01` auf dem zweiten Pi-Puck) — direkt aus dem geklonten Repo heraus, kein Kopieren einzelner Dateien nötig.
 4. **`docs/pipuck_task_simulator.py`** läuft auf einem beliebigen Gerät im selben Netz (z. B. eurem Laptop) — dort genauso: Repo klonen/schon vorhanden, `pip install -e .`, dann direkt starten.
 5. **Bei Änderungen** (z. B. `HEADING_OFFSET` nach der ersten Kalibrierung): auf dem Laptop ändern, committen, pushen — dann auf jedem Pi-Puck `git pull` **vor** dem nächsten Start. Nicht direkt auf dem Pi-Puck editieren, sonst gehen Änderungen beim nächsten `git pull` verloren (genau die Warnung aus eurem "Getting Started"-Dokument, Schritt 7).

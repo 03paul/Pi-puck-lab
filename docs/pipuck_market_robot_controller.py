@@ -26,6 +26,8 @@ from dataclasses import replace
 from pathlib import Path
 from random import Random
 
+import _py37_compat  # noqa: F401 - must run before any allocation/sim/backends import, see its docstring
+
 # Auto-detected, unlike docs/webots_market_robot_controller.py's hardcoded
 # REPO_ROOT: Webots *copies* controller files into its own controllers/
 # directory before running them, so __file__ points into the Webots
