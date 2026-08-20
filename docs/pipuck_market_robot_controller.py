@@ -95,9 +95,12 @@ PILOT_ARENA_HEIGHT_M = 1.0
 # Hard physical-safety net (backends.pipuck.PiPuckBackend.field_min/field_max):
 # on real hardware, overshoot past a waypoint or a bad tracked reading can
 # drive a robot off the taped field before the navigation logic itself
-# would ever notice something's wrong. Small margin beyond the taped edge
-# so normal ARRIVAL_TOLERANCE-level slop near the boundary doesn't trip it.
-FIELD_SAFETY_MARGIN_M = 0.15
+# would ever notice something's wrong. 2026-08-20: robots repeatedly went
+# over the edge - CHANGED FROM a small buffer OUTSIDE the tape to a 0.3m
+# INSET, i.e. the robot now halts 0.3m before the real edge, not 0.15m past
+# it. On the 2x1m field this leaves a 1.4m x 0.4m safe zone - narrow, but
+# safety over coverage per explicit instruction.
+FIELD_SAFETY_INSET_M = 0.3
 
 # Idle robots need to actually search the field for the GUARD task instead of
 # holding still - detection is purely proximity-based (docs/pipuck_task_simulator.py's
@@ -107,7 +110,10 @@ FIELD_SAFETY_MARGIN_M = 0.15
 # for a single-task, two-robot pilot, so each robot just picks its own
 # random point in the field and re-picks on arrival - see explore_target
 # handling in _run_loop below.
-EXPLORE_MARGIN_M = 0.15  # keep waypoints off the taped field edge
+# Kept 0.05m inside FIELD_SAFETY_INSET_M so a waypoint itself never sits
+# right on the safety boundary - normal arrival slop there would trip the
+# safety stop on every single exploration leg.
+EXPLORE_MARGIN_M = FIELD_SAFETY_INSET_M + 0.05
 
 
 def _random_explore_target(rng: Random, config: SimulationConfig) -> tuple[float, float]:
@@ -145,8 +151,8 @@ def main() -> None:
         battery_idle_drain=config.battery_idle_drain,
         battery_move_drain_per_m=config.battery_move_drain_per_m,
         battery=config.initial_battery_max,
-        field_min=(-FIELD_SAFETY_MARGIN_M, -FIELD_SAFETY_MARGIN_M),
-        field_max=(PILOT_ARENA_WIDTH_M + FIELD_SAFETY_MARGIN_M, PILOT_ARENA_HEIGHT_M + FIELD_SAFETY_MARGIN_M),
+        field_min=(FIELD_SAFETY_INSET_M, FIELD_SAFETY_INSET_M),
+        field_max=(PILOT_ARENA_WIDTH_M - FIELD_SAFETY_INSET_M, PILOT_ARENA_HEIGHT_M - FIELD_SAFETY_INSET_M),
     )
 
     print(f"  {robot_id}: waiting for first tracked pose on robot_pos/all...")
