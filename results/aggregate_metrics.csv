@@ -1,0 +1,45 @@
+strategy,metric,label,mean,std,n
+market,quality_score,Composite operational score,0.8612794802969542,0.04210046344272348,40
+market,completion_rate,Completion rate,0.9178571428571429,0.08334641446257698,40
+market,mean_completion_time,Mean completion time [s],37.75517948153212,10.18087990737753,40
+market,load_imbalance,Load imbalance [tasks],1.4211305516393775,0.5468909280399397,40
+market,coverage_fraction,Coverage fraction,0.9827187500000001,0.025660563970209833,40
+market,mean_cell_idleness,Mean cell idleness [s],38.97526289517471,13.310149763057288,40
+market,max_cell_idleness,Max cell idleness [s],264.9875,43.18690558609825,40
+market,mean_detection_latency,Detection latency [s],15.836876368317357,6.8570865695765475,40
+market,messages_per_completed,Messages/completed task,40.25583898377663,4.125665854629124,40
+market,mean_final_battery,Mean final battery,0.5158860171427981,0.01610450159980363,40
+market,depleted_robots,Depleted robots,0.0,0.0,40
+nearest_greedy,quality_score,Composite operational score,0.8307760083774038,0.04125817067894774,40
+nearest_greedy,completion_rate,Completion rate,0.8875,0.07988004481341375,40
+nearest_greedy,mean_completion_time,Mean completion time [s],47.835731864431864,11.183718854914448,40
+nearest_greedy,load_imbalance,Load imbalance [tasks],1.8418494541713266,0.525078824817276,40
+nearest_greedy,coverage_fraction,Coverage fraction,0.981484375,0.023562301272711576,40
+nearest_greedy,mean_cell_idleness,Mean cell idleness [s],38.14124792013312,11.317857225227852,40
+nearest_greedy,max_cell_idleness,Max cell idleness [s],267.0875,46.72092370168276,40
+nearest_greedy,mean_detection_latency,Detection latency [s],14.698960748264616,5.856574702523181,40
+nearest_greedy,messages_per_completed,Messages/completed task,38.27655539750105,3.74745578396345,40
+nearest_greedy,mean_final_battery,Mean final battery,0.5215410571428,0.013158831711622005,40
+nearest_greedy,depleted_robots,Depleted robots,0.0,0.0,40
+nearest_greedy_no_survey,quality_score,Composite operational score,0.8128654469428047,0.043523692835409106,40
+nearest_greedy_no_survey,completion_rate,Completion rate,0.8607142857142858,0.10413984479380936,40
+nearest_greedy_no_survey,mean_completion_time,Mean completion time [s],46.984273538002604,14.424451614332773,40
+nearest_greedy_no_survey,load_imbalance,Load imbalance [tasks],2.08810416498904,0.6518697306338963,40
+nearest_greedy_no_survey,coverage_fraction,Coverage fraction,0.9980156250000001,0.008189325618543833,40
+nearest_greedy_no_survey,mean_cell_idleness,Mean cell idleness [s],35.18165474209651,12.979204825684752,40
+nearest_greedy_no_survey,max_cell_idleness,Max cell idleness [s],238.7,46.13425225111198,40
+nearest_greedy_no_survey,mean_detection_latency,Detection latency [s],17.110463803906736,8.117712604587956,40
+nearest_greedy_no_survey,messages_per_completed,Messages/completed task,10.700379677869382,1.2611824807890508,40
+nearest_greedy_no_survey,mean_final_battery,Mean final battery,0.5155239828570837,0.015675762696439638,40
+nearest_greedy_no_survey,depleted_robots,Depleted robots,0.0,0.0,40
+random_assignment,quality_score,Composite operational score,0.8133657048138743,0.046287374821056486,40
+random_assignment,completion_rate,Completion rate,0.7883928571428571,0.13125693024488386,40
+random_assignment,mean_completion_time,Mean completion time [s],59.60191905446659,13.439622494329068,40
+random_assignment,load_imbalance,Load imbalance [tasks],1.3458476941778996,0.43393482112445375,40
+random_assignment,coverage_fraction,Coverage fraction,0.9668125,0.038402286089803,40
+random_assignment,mean_cell_idleness,Mean cell idleness [s],47.58554076539102,13.310276466398754,40
+random_assignment,max_cell_idleness,Max cell idleness [s],284.2875,29.16396782385362,40
+random_assignment,mean_detection_latency,Detection latency [s],15.154166832860076,8.252662262893535,40
+random_assignment,messages_per_completed,Messages/completed task,43.71655577157079,8.779794970227108,40
+random_assignment,mean_final_battery,Mean final battery,0.5187975999999417,0.013006521945712756,40
+random_assignment,depleted_robots,Depleted robots,0.0,0.0,40

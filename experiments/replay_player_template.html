@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MRTA 2D-Replay</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --page: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #cbd5e1;
+      --grid: #dbe4ee;
+      --button: #e2e8f0;
+      --button-hover: #cbd5e1;
+      --primary: #0f766e;
+      --primary-text: #ffffff;
+      --guard: #d97706;
+      --push: #7c3aed;
+      --surround: #dc2626;
+      --survey: #0284c7;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #0b1120;
+        --surface: #111827;
+        --text: #e5e7eb;
+        --muted: #a8b2c1;
+        --border: #334155;
+        --grid: #263449;
+        --button: #1e293b;
+        --button-hover: #334155;
+        --primary: #14b8a6;
+        --primary-text: #052e2b;
+        --guard: #f59e0b;
+        --push: #a78bfa;
+        --surround: #f87171;
+        --survey: #38bdf8;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(960px, 100%);
+      margin: 0 auto;
+      padding: 20px clamp(12px, 3vw, 28px) 32px;
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-size: clamp(20px, 3vw, 28px);
+      font-weight: 500;
+    }
+    .subtitle { margin: 0 0 18px; color: var(--muted); }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    button, select {
+      min-height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--button);
+      color: var(--text);
+      font: inherit;
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+    button:hover, select:hover { background: var(--button-hover); }
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent);
+      outline-offset: 2px;
+    }
+    #play-toggle {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: var(--primary-text);
+      min-width: 102px;
+    }
+    .field {
+      display: grid;
+      gap: 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .check {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 38px;
+      color: var(--muted);
+    }
+    .timeline-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    #timeline { width: 100%; accent-color: var(--primary); }
+    #time-label { min-width: 126px; text-align: right; font-variant-numeric: tabular-nums; }
+    .readout {
+      min-height: 22px;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .arena-wrap {
+      width: min(100%, 760px);
+      margin: 0 auto;
+      aspect-ratio: 1;
+    }
+    #arena {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 18px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 11px; height: 11px; display: inline-block; transform: rotate(45deg); }
+    .guard { background: var(--guard); }
+    .push { background: var(--push); }
+    .surround { background: var(--surround); }
+    .survey { background: var(--survey); }
+    .hint { margin: 10px 0 0; color: var(--muted); text-align: center; font-size: 12px; }
+    @media (max-width: 520px) {
+      main { padding-top: 14px; }
+      .controls { gap: 8px; }
+      button, select { min-height: 36px; padding: 6px 9px; }
+      .timeline-row { grid-template-columns: 1fr; gap: 3px; }
+      #time-label { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Interaktiver MRTA-Replay</h1>
+    <p class="subtitle" id="subtitle"></p>
+
+    <section aria-label="Wiedergabesteuerung">
+      <div class="controls">
+        <button id="play-toggle" type="button" aria-pressed="false">▶ Start</button>
+        <button id="step-back" type="button">−1 s</button>
+        <button id="step-forward" type="button">+1 s</button>
+        <label class="field" for="speed-select">Geschwindigkeit
+          <select id="speed-select">
+            <option value="0.25">0,25×</option>
+            <option value="0.5">0,5×</option>
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="5" selected>5×</option>
+            <option value="10">10×</option>
+            <option value="20">20×</option>
+          </select>
+        </label>
+        <label class="check"><input id="show-trails" type="checkbox" checked> Fahrspuren</label>
+        <label class="check"><input id="show-survey" type="checkbox" checked> SURVEY</label>
+      </div>
+      <div class="timeline-row">
+        <input id="timeline" type="range" aria-label="Simulationszeit">
+        <output id="time-label" for="timeline"></output>
+      </div>
+      <div class="readout" id="readout" aria-live="polite"></div>
+    </section>
+
+    <div class="arena-wrap">
+      <svg id="arena" viewBox="-65 -45 1130 1110" role="img" aria-labelledby="arena-title arena-description">
+        <title id="arena-title">Roboterbewegungen in der 2D-Arena</title>
+        <desc id="arena-description">Positionen, Fahrspuren und aktive Aufgaben während der Simulation.</desc>
+        <g id="grid-layer"></g>
+        <g id="trail-layer"></g>
+        <g id="task-layer"></g>
+        <g id="robot-layer"></g>
+      </svg>
+    </div>
+
+    <div class="legend" aria-label="Aufgabentypen">
+      <span class="legend-item"><span class="swatch guard"></span>GUARD</span>
+      <span class="legend-item"><span class="swatch push"></span>PUSH</span>
+      <span class="legend-item"><span class="swatch surround"></span>SURROUND</span>
+      <span class="legend-item"><span class="swatch survey"></span>SURVEY</span>
+    </div>
+    <p class="hint">Leertaste: Start/Pause · Pfeiltasten: ±1 Sekunde</p>
+  </main>
+
+  <script id="replay-data" type="application/json">__REPLAY_DATA__</script>
+  <script>
+    (() => {
+      "use strict";
+      const NS = "http://www.w3.org/2000/svg";
+      const data = JSON.parse(document.getElementById("replay-data").textContent);
+      const arena = document.getElementById("arena");
+      const gridLayer = document.getElementById("grid-layer");
+      const trailLayer = document.getElementById("trail-layer");
+      const taskLayer = document.getElementById("task-layer");
+      const robotLayer = document.getElementById("robot-layer");
+      const playToggle = document.getElementById("play-toggle");
+      const stepBack = document.getElementById("step-back");
+      const stepForward = document.getElementById("step-forward");
+      const speedSelect = document.getElementById("speed-select");
+      const showTrails = document.getElementById("show-trails");
+      const showSurvey = document.getElementById("show-survey");
+      const timeline = document.getElementById("timeline");
+      const timeLabel = document.getElementById("time-label");
+      const readout = document.getElementById("readout");
+      const subtitle = document.getElementById("subtitle");
+      const robotColors = ["#2563eb", "#f97316", "#16a34a", "#dc2626", "#8b5cf6", "#92400e", "#db2777", "#0891b2"];
+      const taskColors = {guard: "var(--guard)", push: "var(--push)", surround: "var(--surround)", survey: "var(--survey)"};
+      const W = 1000;
+      const H = 1000;
+      let currentTime = data.start;
+      let playing = false;
+      let lastFrame = null;
+      let runId = 0;
+
+      document.title = `MRTA-Replay · ${data.strategy}`;
+      subtitle.textContent = `${data.strategy} · ${data.arena.width.toFixed(1)} × ${data.arena.height.toFixed(1)} m · ${data.robots.length} Roboter`;
+      timeline.min = String(data.start);
+      timeline.max = String(data.end);
+      timeline.step = "0.1";
+      timeline.value = String(currentTime);
+
+      function svg(name, attributes = {}) {
+        const element = document.createElementNS(NS, name);
+        for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+        return element;
+      }
+
+      function screenX(x) { return x / data.arena.width * W; }
+      function screenY(y) { return H - y / data.arena.height * H; }
+      function displayScale() {
+        return Math.max(1.2, Math.min(3.6, 1130 / Math.max(320, arena.getBoundingClientRect().width)));
+      }
+
+      function drawGrid() {
+        gridLayer.replaceChildren();
+        gridLayer.append(svg("rect", {x: 0, y: 0, width: W, height: H, fill: "var(--surface)", stroke: "var(--border)", "stroke-width": 2}));
+        const divisions = 4;
+        for (let index = 0; index <= divisions; index += 1) {
+          const position = index / divisions * W;
+          gridLayer.append(svg("line", {x1: position, y1: 0, x2: position, y2: H, stroke: "var(--grid)", "stroke-width": 1}));
+          gridLayer.append(svg("line", {x1: 0, y1: position, x2: W, y2: position, stroke: "var(--grid)", "stroke-width": 1}));
+          const xLabel = svg("text", {x: position, y: H + 28, "text-anchor": "middle", fill: "var(--muted)", "font-size": 17});
+          xLabel.textContent = (index / divisions * data.arena.width).toFixed(1);
+          gridLayer.append(xLabel);
+          const yLabel = svg("text", {x: -16, y: H - position + 6, "text-anchor": "end", fill: "var(--muted)", "font-size": 17});
+          yLabel.textContent = (index / divisions * data.arena.height).toFixed(1);
+          gridLayer.append(yLabel);
+        }
+        const xTitle = svg("text", {x: W / 2, y: H + 56, "text-anchor": "middle", fill: "var(--text)", "font-size": 19});
+        xTitle.textContent = "x [m]";
+        gridLayer.append(xTitle);
+        const yTitle = svg("text", {x: -51, y: H / 2, transform: `rotate(-90 -51 ${H / 2})`, "text-anchor": "middle", fill: "var(--text)", "font-size": 19});
+        yTitle.textContent = "y [m]";
+        gridLayer.append(yTitle);
+      }
+
+      function rightIndex(values, t) {
+        let low = 0;
+        let high = values.length;
+        while (low < high) {
+          const middle = (low + high) >> 1;
+          if (values[middle] <= t) low = middle + 1;
+          else high = middle;
+        }
+        return Math.max(0, Math.min(values.length - 1, low - 1));
+      }
+
+      function sample(track, t) {
+        const left = rightIndex(track.t, t);
+        const right = Math.min(track.t.length - 1, left + 1);
+        const span = track.t[right] - track.t[left];
+        const ratio = span > 0 ? Math.max(0, Math.min(1, (t - track.t[left]) / span)) : 0;
+        const mix = (values) => values[left] + (values[right] - values[left]) * ratio;
+        return {x: mix(track.x), y: mix(track.y), battery: mix(track.battery), state: track.state[left]};
+      }
+
+      function taskStatus(task, t) {
+        let latest = null;
+        for (const event of task.events) {
+          if (event[0] > t) break;
+          latest = event[1];
+        }
+        if (latest === null || latest === "DONE" || latest === "FAILED") return null;
+        return latest === "AWARD" ? "assigned" : "bidding";
+      }
+
+      function taskSymbol(task, status, scale) {
+        const x = screenX(task.position[0]);
+        const y = screenY(task.position[1]);
+        const color = taskColors[task.type] || "var(--muted)";
+        const group = svg("g", {transform: `translate(${x} ${y})`, opacity: status === "assigned" ? 1 : 0.62});
+        const common = {stroke: color, "stroke-width": 2.4 * scale, fill: status === "assigned" ? color : "none"};
+        let mark;
+        if (task.type === "guard") mark = svg("polygon", {...common, points: `0,${-12 * scale} ${11 * scale},${10 * scale} ${-11 * scale},${10 * scale}`});
+        else if (task.type === "push") mark = svg("rect", {...common, x: -10 * scale, y: -10 * scale, width: 20 * scale, height: 20 * scale});
+        else if (task.type === "surround") mark = svg("polygon", {...common, points: `0,${-13 * scale} ${13 * scale},0 0,${13 * scale} ${-13 * scale},0`});
+        else {
+          mark = svg("g", {stroke: color, "stroke-width": 2.4 * scale});
+          mark.append(svg("line", {x1: -10 * scale, y1: -10 * scale, x2: 10 * scale, y2: 10 * scale}));
+          mark.append(svg("line", {x1: 10 * scale, y1: -10 * scale, x2: -10 * scale, y2: 10 * scale}));
+        }
+        const title = svg("title");
+        title.textContent = `${task.id} · ${task.type} · ${status}`;
+        group.append(mark, title);
+        return group;
+      }
+
+      const robotNodes = data.robots.map((track, index) => {
+        const group = svg("g");
+        const circle = svg("circle", {r: 18, fill: robotColors[index % robotColors.length], stroke: "var(--text)", "stroke-width": 2});
+        const idLabel = svg("text", {"text-anchor": "middle", fill: "var(--text)", "font-size": 16, "font-weight": 500});
+        const stateLabel = svg("text", {"text-anchor": "middle", fill: "var(--muted)", "font-size": 13});
+        group.append(circle, idLabel, stateLabel);
+        robotLayer.append(group);
+        return {group, circle, idLabel, stateLabel};
+      });
+      const trailNodes = data.robots.map((track, index) => {
+        const path = svg("path", {fill: "none", stroke: robotColors[index % robotColors.length], "stroke-width": 3, opacity: 0.42});
+        trailLayer.append(path);
+        return path;
+      });
+
+      function draw() {
+        const scale = displayScale();
+        const compact = arena.getBoundingClientRect().width < 500;
+        timeline.value = String(currentTime);
+        timeLabel.textContent = `${currentTime.toFixed(1)} / ${data.end.toFixed(1)} s`;
+        const counts = {};
+        data.robots.forEach((track, index) => {
+          const point = sample(track, currentTime);
+          counts[point.state] = (counts[point.state] || 0) + 1;
+          const x = screenX(point.x);
+          const y = screenY(point.y);
+          const labelBelow = y < 35 * scale;
+          robotNodes[index].group.setAttribute("transform", `translate(${x} ${y})`);
+          robotNodes[index].circle.setAttribute("r", String(11 * scale));
+          robotNodes[index].circle.setAttribute("stroke-width", String(1.3 * scale));
+          robotNodes[index].idLabel.setAttribute("font-size", String(12 * scale));
+          robotNodes[index].stateLabel.setAttribute("font-size", String(11 * scale));
+          robotNodes[index].idLabel.setAttribute("y", String((labelBelow ? 23 : -19) * scale));
+          robotNodes[index].stateLabel.setAttribute("y", String((labelBelow ? 36 : -7) * scale));
+          robotNodes[index].stateLabel.setAttribute("display", compact ? "none" : "inline");
+          robotNodes[index].idLabel.textContent = `${track.id} · ${Math.round(point.battery * 100)}%`;
+          robotNodes[index].stateLabel.textContent = point.state;
+
+          if (showTrails.checked) {
+            const first = Math.max(0, rightIndex(track.t, currentTime - 20));
+            const last = rightIndex(track.t, currentTime);
+            const coordinates = [];
+            for (let item = first; item <= last; item += 1) coordinates.push(`${screenX(track.x[item])},${screenY(track.y[item])}`);
+            coordinates.push(`${x},${y}`);
+            trailNodes[index].setAttribute("d", coordinates.length ? `M${coordinates.join(" L")}` : "");
+          } else trailNodes[index].setAttribute("d", "");
+        });
+
+        taskLayer.replaceChildren();
+        let activeTasks = 0;
+        for (const task of data.tasks) {
+          if (!showSurvey.checked && task.type === "survey") continue;
+          const status = taskStatus(task, currentTime);
+          if (status !== null) {
+            taskLayer.append(taskSymbol(task, status, scale * 0.72));
+            activeTasks += 1;
+          }
+        }
+        const stateText = Object.entries(counts).sort().map(([name, count]) => `${name}: ${count}`).join(" · ");
+        readout.textContent = `Aktive Aufgaben: ${activeTasks} · ${stateText}`;
+      }
+
+      function setPlaying(value) {
+        playing = value;
+        runId += 1;
+        lastFrame = null;
+        playToggle.textContent = playing ? "❚❚ Pause" : "▶ Start";
+        playToggle.setAttribute("aria-pressed", String(playing));
+        if (playing) {
+          if (currentTime >= data.end) currentTime = data.start;
+          const id = runId;
+          requestAnimationFrame((timestamp) => tick(timestamp, id));
+        }
+        draw();
+      }
+
+      function tick(timestamp, id) {
+        if (!playing || id !== runId) return;
+        if (lastFrame === null) lastFrame = timestamp;
+        const elapsed = Math.min(0.25, (timestamp - lastFrame) / 1000);
+        lastFrame = timestamp;
+        currentTime = Math.min(data.end, currentTime + elapsed * Number(speedSelect.value));
+        draw();
+        if (currentTime >= data.end) setPlaying(false);
+        else requestAnimationFrame((next) => tick(next, id));
+      }
+
+      function step(seconds) {
+        setPlaying(false);
+        currentTime = Math.max(data.start, Math.min(data.end, currentTime + seconds));
+        draw();
+      }
+
+      playToggle.addEventListener("click", () => setPlaying(!playing));
+      stepBack.addEventListener("click", () => step(-1));
+      stepForward.addEventListener("click", () => step(1));
+      timeline.addEventListener("input", () => { currentTime = Number(timeline.value); draw(); });
+      showTrails.addEventListener("change", draw);
+      showSurvey.addEventListener("change", draw);
+      new ResizeObserver(draw).observe(arena);
+      document.addEventListener("keydown", (event) => {
+        const tag = event.target instanceof HTMLElement ? event.target.tagName : "";
+        if (["INPUT", "SELECT", "BUTTON"].includes(tag)) return;
+        if (event.code === "Space") { event.preventDefault(); setPlaying(!playing); }
+        else if (event.code === "ArrowLeft") step(-1);
+        else if (event.code === "ArrowRight") step(1);
+      });
+
+      drawGrid();
+      draw();
+    })();
+  </script>
+</body>
+</html>

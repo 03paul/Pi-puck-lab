@@ -1,0 +1,62 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/gctronic/e-puck/protos/E-puck.proto"
+
+WorldInfo {
+}
+Viewpoint {
+  orientation -0.24412256688145614 0.01660202330137617 0.9696022613223989 3.0099155558842665
+  position 9.163206815029202 -0.47757113745610463 5.413977658639242
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RectangleArena {
+  floorSize 2 2
+}
+E-puck {
+  hidden position_0_0 32181.41132024596
+  hidden linearVelocity_0 0.0001254881454374775 0.00010197464808114125 1.902367170763787e-08
+  hidden angularVelocity_0 -0.006798280483335595 0.008365840197163377 -1.5029325209756592e-11
+  hidden translation_1 0 0.025999999999999992 0.02
+  hidden rotation_1 0 -1 0 1.0638231278825756
+  hidden linearVelocity_1 0.00016731571238612589 0.00013596708576258057 -2.1117008871348033e-11
+  hidden angularVelocity_1 -0.006798280429238997 0.008365840245573802 1.8084892415220294e-10
+  hidden translation_2 0 -0.025999999999999995 0.02
+  hidden rotation_2 0 1 0 1.3307006811528956
+  hidden linearVelocity_2 0.00016731802507713371 0.00013596423886138795 -2.0968900810973422e-11
+  hidden angularVelocity_2 -0.006798280541767704 0.008365840154126725 -2.1272451048689073e-10
+  translation 0.05655400865442956 0.13092776946050222 -6.395977366396507e-05
+  rotation -0.00028925889640611874 0.0008146282090127433 0.999999626355016 0.6823913305978149
+  name "r00"
+  controller "market_robot_controller"
+  supervisor TRUE
+}
+E-puck {
+  hidden position_0_0 3.098269828799889e-08
+  hidden position_0_1 3.0982652357182625e-08
+  hidden rotation_1 0 1 0 2.9802322387695313e-08
+  hidden rotation_2 0 1 0 2.9802322387695313e-08
+  translation 9.724280851891807e-11 -1.6530061308524044e-13 -6.49897109438885e-05
+  rotation 0.7274800943979611 -0.6861287869292877 -1.2951112560923188e-06 3.3576463183421274e-09
+  name "r01"
+  controller "market_robot_controller"
+}
+Robot {
+  translation 0 0 0.3
+  children [
+    Receiver {
+      channel 1
+    }
+    Emitter {
+      channel 1
+    }
+  ]
+  name "camera"
+  controller "supervisor_controller"
+  supervisor TRUE
+}

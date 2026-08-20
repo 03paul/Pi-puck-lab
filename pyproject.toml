@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decentralized-mrta"
+version = "0.1.0"
+description = "Deterministic Tier-0 simulator for decentralized market-based multi-robot task allocation"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "matplotlib>=3.8"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["allocation*", "backends*", "experiments*", "metrics*", "sim*"]
+
+[tool.setuptools.package-data]
+experiments = ["*.html"]

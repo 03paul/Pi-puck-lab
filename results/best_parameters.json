@@ -1,0 +1,10 @@
+{
+  "market_weights": {
+    "alpha": 1.0,
+    "beta": 0.5,
+    "gamma": 0.0,
+    "delta": 1.5,
+    "theta_hyst": 0.1
+  },
+  "training_quality_score": 0.8738626222232695
+}
