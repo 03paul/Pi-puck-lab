@@ -38,8 +38,13 @@ crashen.
    ```
    git clone <euer-repo-url> decentralized-mrta
    cd decentralized-mrta
-   pip3 install paho-mqtt VL53L1X   # falls laut "Getting Started" noch nicht installiert
+   pip3 install paho-mqtt VL53L1X typing_extensions   # falls laut "Getting Started" noch nicht installiert
    ```
+   `typing_extensions` ist nötig, weil aktuelle `paho-mqtt`-Versionen intern
+   `typing.Literal` (erst ab Python 3.8) mit Fallback auf
+   `typing_extensions.Literal` verwenden — auf Python 3.7 (Pi-Puck-Image)
+   schlägt sonst schon der `import paho.mqtt.client` in `backends/pipuck.py`
+   fehl (`ModuleNotFoundError: No module named 'typing_extensions'`).
    **Kein `pip3 install -e .`** — `pyproject.toml` verlangt `numpy`/`matplotlib`
    (für `experiments/`, hier ungenutzt und auf einem Pi Zero 2 W unnötig
    langsam zu bauen). Die vom Piloten importierten Module (`allocation`,
@@ -67,7 +72,7 @@ gleichermaßen, da geteilte Datei): `TRACKING_ID_TO_ROBOT_ID` und
 ## 0. Vor dem Lab (ohne Hardware)
 
 - [ ] `pip install -e .` in einer frischen venv, `python -m unittest discover -s tests` — alle Tests grün (54 Stück, inkl. `test_pipuck_backend.py`).
-- [ ] `pip install paho-mqtt` auf jedem Gerät, das `backends/pipuck.py` importiert (Pi-Pucks + ggf. Laptop für `docs/pipuck_task_simulator.py`).
+- [ ] `pip install paho-mqtt typing_extensions` auf jedem Gerät, das `backends/pipuck.py` importiert (Pi-Pucks + ggf. Laptop für `docs/pipuck_task_simulator.py`) — `typing_extensions` nur auf Python < 3.8 nötig (Pi-Puck-Image), s. Abschnitt "Deployment" oben.
 - [ ] Auf den Pi-Pucks: Setup laut eurem eigenen "Getting Started"-Dokument bereits erledigt (`pi-puck`-Paket, `VL53L1X`, `paho-mqtt` installiert, Epuck2-Firmware geflasht, Selector auf `A`).
 - [ ] Repo wie im Abschnitt "Deployment" oben beschrieben auf beide Pi-Pucks (und ggf. den Laptop) geklont — `REPO_ROOT` muss dafür nicht manuell angepasst werden.
 

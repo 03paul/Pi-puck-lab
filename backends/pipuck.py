@@ -57,13 +57,13 @@ WIRE_TOPIC = "mrta/wire"  # this project's own shared topic: allocation.Message 
 # actual robots AND task-object props (a cardboard cylinder with a marker
 # reads exactly like a robot to the tracker). Two separate mappings from
 # that shared numeric-id space, both EDIT-ME before the pilot:
-TRACKING_ID_TO_ROBOT_ID = {22: "r00", 32: "r01"}  # VERIFY against the RCPS dashboard: your two Pi-Pucks
+TRACKING_ID_TO_ROBOT_ID = {34: "r00", 1: "r01"}  # VERIFY against the RCPS dashboard: your two Pi-Pucks
 # The pilot's one GUARD task-object marker (e.g. taped to a small cardboard
 # cylinder) - its position is read LIVE from robot_pos/all every tick, not
 # hardcoded, so it can be moved between runs without touching any code.
 # VERIFY against the RCPS dashboard: whichever numeric id is the cylinder,
 # not a robot.
-PILOT_TASK_TRACKING_ID = 50
+PILOT_TASK_TRACKING_ID = 44
 
 # --- movement ----------------------------------------------------------------
 # Same rotate-then-cruise design validated in backends/webots.py; constants
