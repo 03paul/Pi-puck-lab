@@ -121,6 +121,29 @@ def _wrap(angle: float) -> float:
     return math.atan2(math.sin(angle), math.cos(angle))
 
 
+# VERIFIED on-site (2026-08-20 pilot logs): the tracker sometimes republishes
+# a bit-for-bit IDENTICAL pose across many consecutive robot_pos/all
+# messages (heading/position frozen for dozens of ticks while a rotate
+# command is actively being sent) - almost certainly the tracker losing the
+# marker (motion blur at speed) and echoing its last-known reading with a
+# fresh timestamp rather than dropping the entry. POSE_STALE_AFTER_S alone
+# can't catch this: it only measures "time since the last MQTT message",
+# and these frozen re-sends count as new messages, so the control loop
+# happily keeps steering on data that was never actually updated. Real
+# tracking noise essentially never repeats bit-for-bit, so treat an
+# unchanged reading as evidence the tracker itself is stuck.
+_POSE_UNCHANGED_EPS_M = 0.002  # 2 mm
+_POSE_UNCHANGED_EPS_RAD = math.radians(0.3)
+
+
+def _pose_changed(new: tuple[float, float, float], old: tuple[float, float, float]) -> bool:
+    return (
+        abs(new[0] - old[0]) > _POSE_UNCHANGED_EPS_M
+        or abs(new[1] - old[1]) > _POSE_UNCHANGED_EPS_M
+        or abs(_wrap(new[2] - old[2])) > _POSE_UNCHANGED_EPS_RAD
+    )
+
+
 class _MotorDriver:
     """The ONE place hardware-specific motor control lives - isolated so
     that if the installed `pi-puck` package's real API or unit convention
@@ -288,6 +311,8 @@ class PiPuckBackend:
     # margin; see docs/pipuck_market_robot_controller.py.
     field_min: tuple[float, float] = (-1e9, -1e9)
     field_max: tuple[float, float] = (1e9, 1e9)
+    _last_cruise_debug_at: float = -1e9
+    _last_cruise_debug_pos: tuple[float, float] | None = None
 
     # --- RobotBackend protocol ----------------------------------------------
     def get_pose(self) -> tuple[float, float, float]:
@@ -462,6 +487,29 @@ class PiPuckBackend:
         self.motors.set_velocity(speed, speed)
         self._drain_battery(dt, speed * WHEEL_RADIUS * dt)
 
+        # HEADING_OFFSET calibration data (see docs/LAB_PILOT_CHECKLIST.md
+        # section 6/8 and backends/webots.py's HEADING_OFFSET comment for the
+        # method): compares reported `heading` against the bearing actually
+        # travelled between two real fixes, ~1s apart so tracker noise
+        # doesn't dominate the estimate. If `travel_bearing` consistently
+        # leads or lags `heading` by close to the same amount across several
+        # prints, that gap (with sign flipped) is HEADING_OFFSET.
+        if self._last_cruise_debug_pos is not None and self.now() - self._last_cruise_debug_at >= 1.0:
+            dx, dy = px - self._last_cruise_debug_pos[0], py - self._last_cruise_debug_pos[1]
+            if math.hypot(dx, dy) > _POSE_UNCHANGED_EPS_M * 3:  # ignore noise-scale jitter
+                travel_bearing = math.atan2(dy, dx)
+                print(
+                    f"    [cruise] {self.robot_id} heading={math.degrees(heading):+7.2f} deg "
+                    f"travel_bearing={math.degrees(travel_bearing):+7.2f} deg "
+                    f"gap={math.degrees(_wrap(travel_bearing - heading)):+7.2f} deg "
+                    f"pos=({px:+.3f},{py:+.3f})"
+                )
+                self._last_cruise_debug_at = self.now()
+                self._last_cruise_debug_pos = (px, py)
+        elif self._last_cruise_debug_pos is None:
+            self._last_cruise_debug_at = self.now()
+            self._last_cruise_debug_pos = (px, py)
+
     # --- internals -----------------------------------------------------------
     def _drain_battery(self, dt: float, travelled_m: float) -> None:
         self.battery = max(
@@ -474,8 +522,14 @@ class PiPuckBackend:
                 poses = _parse_robot_pos_payload(raw)
                 pose = poses.get(self.robot_id)
                 if pose is not None:
+                    # Only reset the staleness clock if the tracker actually
+                    # moved - see _pose_changed's comment. A frozen/repeated
+                    # reading keeps the OLD _last_pose_at, so it correctly
+                    # ages into the POSE_STALE_AFTER_S freeze instead of
+                    # looking perpetually fresh.
+                    if self._last_pose is None or _pose_changed(pose, self._last_pose):
+                        self._last_pose_at = self.now()
                     self._last_pose = pose
-                    self._last_pose_at = self.now()
             elif topic == WIRE_TOPIC:
                 self._route_incoming(raw)
 
