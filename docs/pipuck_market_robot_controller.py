@@ -24,11 +24,14 @@ import sys
 import time
 import traceback
 from dataclasses import replace
-from math import dist
 from pathlib import Path
 from random import Random
 
 import _py37_compat  # noqa: F401 - must run before any allocation/sim/backends import, see its docstring
+
+# math.dist is one of the things _py37_compat patches in - must be imported
+# after it too, same reason as the allocation/sim/backends imports below.
+from math import dist
 
 # Auto-detected, unlike docs/webots_market_robot_controller.py's hardcoded
 # REPO_ROOT: Webots *copies* controller files into its own controllers/
