@@ -315,6 +315,18 @@ class PiPuckBackend:
             return
 
         px, py, heading = self.get_pose()
+        if self.now() - self._last_pose_at > POSE_STALE_AFTER_S:
+            # Feedback is too old to steer on safely - acting on it anyway is
+            # exactly what produced in-place jittering on real hardware: the
+            # rotate controller corrects against a position/heading that's
+            # already >1s out of date, overshoots, "corrects" again against
+            # the next equally-stale reading, and limit-cycles instead of
+            # converging. Hold still until the tracker catches up again
+            # rather than steering on stale data (get_pose() already printed
+            # the staleness warning above).
+            self.motors.set_velocity(0.0, 0.0)
+            self._drain_battery(dt, 0.0)
+            return
         bearing = math.atan2(self.target[1] - py, self.target[0] - px)
 
         if self._phase == _Phase.IDLE:
