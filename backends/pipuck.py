@@ -83,7 +83,17 @@ STUCK_CHECK_INTERVAL_S = 5.0
 STUCK_DISTANCE_THRESHOLD = 0.05  # m per interval
 BACKOFF_SPEED = -2.0
 BACKOFF_DURATION_S = 1.5
-POSE_STALE_AFTER_S = 1.0  # treat a robot as "lost" if the tracker hasn't reported it this recently
+POSE_STALE_AFTER_S = 2.5  # treat a robot as "lost" if the tracker hasn't reported it this recently
+# VERIFY on-site: pilot logs show robot_pos/all landing roughly every ~1.2-1.3s
+# for a tracked marker in normal operation (not a fixed/guaranteed rate anywhere
+# in the lab's own docs), well above a 15 Hz control loop's tick. 1.0s used to
+# sit *below* that normal gap, so both this warning and tick()'s stale-pose
+# motor freeze (see PiPuckBackend.tick) fired on almost every ordinary update
+# cycle, not just on genuine tracker loss - looked like "the tracker keeps
+# losing the robot" and, combined with the freeze, could look like the robot
+# barely moving/jittering instead of steering smoothly between updates. 2.5s
+# gives a couple of missed updates worth of headroom before treating it as
+# actually lost.
 
 # Control-plane wire tags carried inside WIRE_TOPIC payloads (identical in
 # spirit to backends/webots.py's CTL_* tags, transport differs):

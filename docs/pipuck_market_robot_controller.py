@@ -74,6 +74,19 @@ STRATEGY_NAME = StrategyName.MARKET
 # pilot this should rarely matter, but costs nothing to keep consistent.
 PREEMPTION_COOLDOWN_OVERRIDE_S = 90.0
 
+# parameters/default.json's arena_width/arena_height (2.0 x 2.0) is shared
+# with Tier 0's abstract experiments and Tier 1's Webots world - do NOT edit
+# that file for this pilot, it would shift experiments/replay.py's plot
+# scaling and docs/webots_market_supervisor_controller.py's task-spawn grid
+# for those already-calibrated tiers. Override locally instead, same pattern
+# as PREEMPTION_COOLDOWN_OVERRIDE_S above. VERIFY against the lab's actual
+# taped-out field before each session - this matters beyond cosmetics: both
+# used below via arena_diagonal() to normalise the MARKET strategy's bid
+# distance term (sim/robot.py), so a wrong arena size skews bids relative to
+# how results/best_parameters.json's weights were actually calibrated.
+PILOT_ARENA_WIDTH_M = 2.0
+PILOT_ARENA_HEIGHT_M = 1.0
+
 
 def _load_strategy() -> Strategy:
     weights = json.loads(BEST_WEIGHTS_PATH.read_text(encoding="utf-8"))["market_weights"]
@@ -86,7 +99,13 @@ def main() -> None:
     robot_id = sys.argv[1]
 
     config = SimulationConfig.from_json(CONFIG_PATH)
-    config = replace(config, preemption_cooldown=PREEMPTION_COOLDOWN_OVERRIDE_S, arrival_tolerance=ARRIVAL_TOLERANCE)
+    config = replace(
+        config,
+        preemption_cooldown=PREEMPTION_COOLDOWN_OVERRIDE_S,
+        arrival_tolerance=ARRIVAL_TOLERANCE,
+        arena_width=PILOT_ARENA_WIDTH_M,
+        arena_height=PILOT_ARENA_HEIGHT_M,
+    )
     strategy = _load_strategy()
 
     transport = _MqttTransport()  # connects to MQTT_BROKER, subscribes to POS_TOPIC + WIRE_TOPIC - see backends/pipuck.py
