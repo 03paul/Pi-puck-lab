@@ -257,6 +257,7 @@ class PiPuckBackend:
     _protocol_inbox: list[bytes] = field(default_factory=list)
     _detections: list[Detection] = field(default_factory=list)
     _control_inbox: list[dict[str, Any]] = field(default_factory=list)
+    _last_rotate_debug_at: float = -1e9
 
     # --- RobotBackend protocol ----------------------------------------------
     def get_pose(self) -> tuple[float, float, float]:
@@ -353,6 +354,21 @@ class PiPuckBackend:
             else:
                 turn = max(-MAX_WHEEL_SPEED, min(MAX_WHEEL_SPEED, ROTATE_GAIN * error))
                 self.motors.set_velocity(-turn, turn)
+                # Diagnostic for the on-site heading-convention/motor-polarity
+                # check (see module docstring point 2: robot_pos/all's angle
+                # sign/reference axis was never actually verified against a
+                # real payload) - if `error` doesn't shrink tick over tick
+                # while this prints, or the robot visibly spins opposite to
+                # what a positive/negative `turn` implies, that convention is
+                # wrong, not the control law. Throttled to ~3 Hz so it stays
+                # readable at 15 Hz control rate.
+                if self.now() - self._last_rotate_debug_at >= 0.3:
+                    self._last_rotate_debug_at = self.now()
+                    print(
+                        f"    [rotate] {self.robot_id} heading={math.degrees(heading):+7.2f} deg "
+                        f"bearing={math.degrees(bearing):+7.2f} deg error={math.degrees(error):+7.2f} deg "
+                        f"turn={turn:+.2f} rad/s pos=({px:+.3f},{py:+.3f}) target=({self.target[0]:+.3f},{self.target[1]:+.3f})"
+                    )
             self._drain_battery(dt, 0.0)
             return
 
